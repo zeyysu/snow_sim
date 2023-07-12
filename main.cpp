@@ -12,7 +12,7 @@
 #include <sstream>
 #include <vector>
 #include <GL/glew.h>   // The GL Header File
-#include <OpenGL/gl.h>   // The GL Header File
+#include <GL/gl.h>   // The GL Header File
 #include <GLFW/glfw3.h> // The GLFW header
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"

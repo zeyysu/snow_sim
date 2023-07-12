@@ -1,2 +1,2 @@
 all:
-	g++ main.cpp -o main -lglfw -lGLEW -framework OpenGL -std=c++11
+	g++ main.cpp -g -o main -lglfw -lGLU -lGL -lGLEW
