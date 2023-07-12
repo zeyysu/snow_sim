@@ -1,0 +1,9 @@
+to compile:
+make
+to run:
+./main
+you can use W and S buttons to increase and decrease the velocity of the camera, respectively
+similarly, A and D buttons are used to look left and right, respectively
+look around say hello to the snow bunnies!
+enjoy my car simulation!
+thank you!

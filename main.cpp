@@ -26,9 +26,9 @@ int width = 900, height = 600;
 
 GLuint skyboxvao;
 //0=ground 1=snowflake
-GLuint vao[2];
-GLuint gVertexAttribBuffer[2], gIndexBuffer[2];
-int gVertexDataSizeInBytes[2], gNormalDataSizeInBytes[2];
+GLuint vao[3];
+GLuint gVertexAttribBuffer[3], gIndexBuffer[3];
+int gVertexDataSizeInBytes[3], gNormalDataSizeInBytes[3];
 unsigned int cubemapTexture, groundTexture, snowTexture, displacementMapTexture;
 const int textureWidth = 512;
 const int textureHeight = 512;     
@@ -38,8 +38,8 @@ float frequency = 0.1;
 float amplitude = 0.5;
 
 
-//0=stcubemap 1=ground 2=snow 3=cubes
-GLuint gProgram[3];
+//0=stcubemap 1=ground 2=snow 3=bunny
+GLuint gProgram[4];
 struct Vertex
 {
 	Vertex(GLfloat inX, GLfloat inY, GLfloat inZ) : x(inX), y(inY), z(inZ) { }
@@ -82,10 +82,10 @@ struct Face
 	GLuint vIndex[3], tIndex[3], nIndex[3];
 };
 
-vector<Vertex> gVertices[2];
-vector<Texture> gTextures[2];
-vector<Normal> gNormals[2];
-vector<Face> gFaces[2];
+vector<Vertex> gVertices[3];
+vector<Texture> gTextures[3];
+vector<Normal> gNormals[3];
+vector<Face> gFaces[3];
 vector<Snowflake> snowflakes;
 
 float camRotAngle = 0;
@@ -181,9 +181,26 @@ void drawModel(int i)
 	glDrawElements(GL_TRIANGLES, gFaces[i].size() * 3, GL_UNSIGNED_INT, 0);
 }
 
+void displayStatues(glm::mat4 &viewing, glm::mat4 &perspective, glm::vec3 eyePos) {
+    glUseProgram(gProgram[3]);
+
+    glm::mat4 translate = glm::translate(glm::mat4(1.f), glm::vec3(0.16,-0.001,0.16));
+    glm::mat4 scale = glm::scale(glm::mat4(1.f), glm::vec3(0.012,0.012,0.012));
+
+    glUniformMatrix4fv(glGetUniformLocation(gProgram[3], "viewingMatrix"), 1, GL_FALSE, glm::value_ptr(viewing));
+    glUniformMatrix4fv(glGetUniformLocation(gProgram[3], "projectionMatrix"), 1, GL_FALSE, glm::value_ptr(perspective));
+    glUniform3fv(glGetUniformLocation(gProgram[3],"eyePos"),1, glm::value_ptr(eyePos));
+
+    for(int i = 0; i < 8; i++){
+        glm::mat4 rotate = glm::rotate(glm::mat4(1.f), glm::radians(i*45.f), glm::vec3(0,1,0));
+        glm::mat4 model = rotate * translate * scale;
+        glUniformMatrix4fv(glGetUniformLocation(gProgram[3], "modelingMatrix"), 1, GL_FALSE, glm::value_ptr(model));
+        drawModel(2);
+    }
+}
+
 void displaysnow(glm::mat4 &viewing, glm::mat4 &perspective){
     glUseProgram(gProgram[2]);
-    float snowRate = 0.005; // Rate of snow accumulation per frame
     glm::mat4 inverseViewMatrix = glm::inverse(viewing);
     glm::mat3 cameraOrientationMatrix = glm::mat3(inverseViewMatrix); 
     glm::mat4 modelMatrix = glm::mat4(1.0f); // Identity matrix
@@ -209,9 +226,9 @@ void displaysnow(glm::mat4 &viewing, glm::mat4 &perspective){
             float disz = iter->position.z - (-0.5);
             if(disz > 1.0 || disz < 0.0) continue;;
             int txtw = disX * (textureWidth-1);
-            int txth = disz * (textureHeight-1);
+            int txth = 512 - disz * (textureHeight-1);
             int index = txth * textureWidth + txtw;
-            snowHeightData[index] += 3;
+            snowHeightData[index] += 2;
             if(snowHeightData[index]>255) snowHeightData[index]=255;
         }
         }
@@ -272,7 +289,7 @@ void displayCM(glm::mat4 &viewing, glm::mat4 &perspective){
 
 	glDrawArrays(GL_TRIANGLES, 0, 36);
     glBindVertexArray(0);
-    // glEnable(GL_DEPTH_TEST);
+    glEnable(GL_DEPTH_TEST);
     // glDepthFunc(GL_LESS);
     
 }
@@ -298,6 +315,7 @@ void display(){
     eyePos = camX * eyePos;
     lookAt = camX * lookAt;
     viewing = glm::lookAt(glm::vec3(eyePos), glm::vec3(lookAt), glm::vec3(0,1,0));
+    displayStatues(viewing, perspective, glm::vec3(eyePos));
 
     displayground(viewing, perspective);
     for(int i=0;i<20;i++){
@@ -534,6 +552,7 @@ void initShaders()
     gProgram[0] = glCreateProgram();
     gProgram[1] = glCreateProgram();
     gProgram[2] = glCreateProgram();
+    gProgram[3] = glCreateProgram();
 
     createVS(gProgram[0], "stcmvert.glsl");
     createFS(gProgram[0], "stcmfrag.glsl");
@@ -543,11 +562,15 @@ void initShaders()
 
     createVS(gProgram[2], "snowvert.glsl");
     createFS(gProgram[2], "snowfrag.glsl");
+
+    createVS(gProgram[3], "statuevert.glsl");
+    createFS(gProgram[3], "statuefrag.glsl");
    
 
     glLinkProgram(gProgram[0]);
     glLinkProgram(gProgram[1]);
     glLinkProgram(gProgram[2]);
+    glLinkProgram(gProgram[3]);
     glUseProgram(gProgram[0]);
 }
 
@@ -569,7 +592,7 @@ void initSkyboxVBO(){
 
 void initVBOs()
 {
-    for(int i=0; i<2; i++){
+    for(int i=0; i<3; i++){
     glGenVertexArrays(1, &vao[i]);
     assert(vao[i] > 0);
     glBindVertexArray(vao[i]);
@@ -691,6 +714,14 @@ bool ParseObj(const string& fileName, unsigned int i)
                     str >> tmp; // consume "f"
 					char c;
 					int vIndex[3],  nIndex[3], tIndex[3];
+                    if(i == 2){
+                        str >> vIndex[0]; str >> c >> c; // consume "//"
+					str >> nIndex[0]; 
+					str >> vIndex[1]; str >> c >> c; // consume "//"
+					str >> nIndex[1]; 
+					str >> vIndex[2]; str >> c >> c; // consume "//"
+					str >> nIndex[2]; 
+                    }else{
 					str >> vIndex[0]; str >> c; // consume "//"
 					str >> tIndex[0];  str >> c;
                     str >> nIndex[0];
@@ -700,6 +731,7 @@ bool ParseObj(const string& fileName, unsigned int i)
 					str >> vIndex[2]; str >> c; // consume "//"
 					str >> tIndex[2];  str >> c;
                     str >> nIndex[2];
+                    }
 
 					// assert(vIndex[0] == nIndex[0] &&
 					// 	   vIndex[1] == nIndex[1] &&
@@ -746,8 +778,8 @@ void init()
 
     ParseObj("obj/square.obj",0);
     ParseObj("obj/quad.obj", 1);
-    srand((unsigned) time(NULL));
-    glDisable(GL_DEPTH_TEST);
+    ParseObj("obj/bunny.obj", 2);
+    glEnable(GL_DEPTH_TEST);
     glEnable(GL_BLEND);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	glBlendEquation(GL_FUNC_ADD);
